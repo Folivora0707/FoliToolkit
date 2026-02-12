@@ -1,0 +1,16 @@
+{
+    "name": "Foli.Game",
+    "rootNamespace": "",
+    "references": [
+        "GUID:7854769a3fa08924fb0bf6bf13dfa469"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
