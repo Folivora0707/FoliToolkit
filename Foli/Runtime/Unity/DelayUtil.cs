@@ -1,16 +1,18 @@
 using System;
 using Cysharp.Threading.Tasks;
+using UnityEngine;
 
 public static class DelayUtil
 {
     #region 对外接口，隐藏 Forget 语义
         
     /// <summary>
-    /// 延时 N 毫秒执行
+    /// 延时 N 秒执行
     /// </summary>
-    public static void RunDelay(Action action, int milliseconds)
+    public static void RunDelay(Action action, float seconds, bool ignoreTimeScale = false)
     {
-        Delay(action, milliseconds).Forget();
+        int milliseconds = Mathf.RoundToInt(seconds * 1000);
+        Delay(action, milliseconds, ignoreTimeScale).Forget();
     }
         
     /// <summary>
@@ -33,15 +35,16 @@ public static class DelayUtil
     #endregion 对外接口
         
     #region 内部实现
-        
+
     /// <summary>
     /// 延时 N 毫秒执行某方法
     /// </summary>
     /// <param name="action"> 方法 </param>
     /// <param name="milliseconds"> 毫秒数 </param>
-    private static async UniTask Delay(Action action, int milliseconds)
+    /// <param name="ignoreTimeScale">忽略 TimeScale 影响</param>
+    private static async UniTask Delay(Action action, int milliseconds, bool ignoreTimeScale = false)
     {
-        await UniTask.Delay(milliseconds);
+        await UniTask.Delay(milliseconds, ignoreTimeScale: ignoreTimeScale);
         action?.Invoke();
     }
     
