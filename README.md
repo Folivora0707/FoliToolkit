@@ -1,2 +1,2 @@
 # FoliToolkit
-自用工具包UPM包发布
+自用工具集UPM包
