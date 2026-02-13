@@ -1,12 +1,14 @@
 using System.Collections;
 using UnityEngine;
 
-namespace Foli.Unity
+namespace Foli
 {
+    /// <summary>
+    /// 全局协程执行器
+    /// </summary>
     public class CoroutineRunner : MonoBehaviour
     {
         private static CoroutineRunner _instance;
-
         private static CoroutineRunner Instance
         {
             get
@@ -20,7 +22,7 @@ namespace Foli.Unity
                 return _instance;
             }
         }
-
+        
         public static Coroutine Run(IEnumerator coroutine) => Instance.StartCoroutine(coroutine);
         
     }
