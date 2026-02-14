@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Foli
 {
-    public abstract class MonoSingleton<T> : MonoBehaviour where T : MonoSingleton<T>
+    public abstract class SingletonBase<T> : MonoBehaviour where T : SingletonBase<T>
     {
         private static T _instance;
         private static bool _isQuitting;
