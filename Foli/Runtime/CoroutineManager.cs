@@ -6,28 +6,33 @@ using UnityEngine;
 namespace Foli
 {
     /// <summary>
-    /// 全局协程执行器
+    /// 全局协程管理器
     /// </summary>
     public class CoroutineManager : SingletonBase<CoroutineManager>
     {
-        private static readonly Dictionary<object, Coroutine> KeyMap = new();
-        private static readonly Dictionary<string, List<Coroutine>> TagMap = new();
+        private class CoroutineHandle
+        {
+            public Coroutine Coroutine;
+            public bool IsRunning;
+        }
+        private static readonly Dictionary<object, CoroutineHandle> KeyMap = new();
+        private static readonly Dictionary<string, List<CoroutineHandle>> TagMap = new();
 
         #region 启动
 
         /// <summary>
-        /// 原生协程启动入口
+        /// 支持装饰器包装后再调用
         /// </summary>
         public static Coroutine Run(IEnumerator routine)
         {
             return routine == null ? null : Instance.StartCoroutine(routine);
         }
-        /// <summary>
-        /// 带异常保护，有性能开销
-        /// </summary>
-        public static Coroutine RunSafe(IEnumerator routine)
+
+        private static CoroutineHandle RunTracked(IEnumerator routine)
         {
-            return routine == null ? null : Run(WrapWithTryCatch(routine));
+            var handle = new CoroutineHandle();
+            handle.Coroutine = Instance.StartCoroutine(WrapIsRunning(routine, handle));
+            return handle;
         }
 
         #endregion
@@ -51,37 +56,31 @@ namespace Foli
 
         #region 唯一 Key 管理
 
-        public static Coroutine RunUnique(object key, IEnumerator routine, bool safe = false)
+        public static Coroutine RunUnique(object key, IEnumerator routine)
         {
-            if (key == null) return safe ? RunSafe(routine) : Run(routine);
+            if (key == null) return Run(routine); // key 为 null 时，等效于原生协程，不管理
 
-            if (KeyMap.TryGetValue(key, out var old))
-            {
-                if (old != null) Instance.StopCoroutine(old);
-            }
+            if (KeyMap.TryGetValue(key, out var old) && old != null)
+                Instance.StopCoroutine(old.Coroutine);
 
-            routine = WrapWithCallback(routine, () => { StopUnique(key); });
-            var c = safe ? RunSafe(routine) : Run(routine);
-            KeyMap[key] = c;
-            return c;
+            var handle = new CoroutineHandle();
+            var wrapper = WrapAutoCleanKey(routine, handle, key);
+            handle = RunTracked(wrapper);
+            KeyMap[key] = handle;
+            return handle.Coroutine;
         }
 
-        public static void BindUnique(object key, Coroutine coroutine)
+        public static bool IsRunningUnique(object key)
         {
-            if (key == null ||  coroutine == null) return;
-            if (KeyMap.TryGetValue(key, out var old))
-            {
-                if (old != null) Instance.StopCoroutine(old);
-            }
-            KeyMap[key] = coroutine;
+            return key != null && KeyMap.TryGetValue(key, out var handle) && handle.IsRunning;
         }
-
+        
         public static void StopUnique(object key)
         {
             if (key == null) return;
-            if (KeyMap.TryGetValue(key, out var coroutine))
+            if (KeyMap.TryGetValue(key, out var handle))
             {
-                if (coroutine != null) Instance.StopCoroutine(coroutine);
+                if (handle?.Coroutine != null) Instance.StopCoroutine(handle.Coroutine);
                 KeyMap.Remove(key);
             }
         }
@@ -90,59 +89,59 @@ namespace Foli
 
         #region 统一 Tag 管理
 
-        public static Coroutine RunTag(string tag, IEnumerator routine, bool safe = false)
+        public static Coroutine RunTag(string tag, IEnumerator routine)
         {
-            if (string.IsNullOrEmpty(tag)) return safe ? RunSafe(routine) : Run(routine);
-
-            routine = WrapWithCallback(routine, () =>
-            {
-  
-            });
-            var c = safe ? RunSafe(routine) : Run(routine);
+            if (string.IsNullOrEmpty(tag)) return Run(routine); // tag 为 null 时，等效于原生协程，不管理
+            
+            var handle = new CoroutineHandle();
+            var wrapper = WrapAutoCleanTag(routine, handle, tag);
+            handle = RunTracked(wrapper);
+            
             if (!TagMap.TryGetValue(tag, out var list))
             {
-                list = new List<Coroutine>();
+                list = new List<CoroutineHandle>();
                 TagMap[tag] = list;
             }
-            list.Add(c);
-            return c;
+            if (!list.Contains(handle))
+                list.Add(handle);
+            return handle.Coroutine;
         }
 
-        public static void BindTag(string tag, Coroutine coroutine)
+        public static bool IsRunningTag(string tag)
         {
-            if (string.IsNullOrEmpty(tag) || coroutine == null) return;
-
-            if (!TagMap.TryGetValue(tag, out var list))
+            if (string.IsNullOrEmpty(tag)) return false;
+            if (!TagMap.TryGetValue(tag, out var list)) return false;
+            
+            foreach (var handle in list)
             {
-                list = new List<Coroutine>();
-                TagMap[tag] = list;
+                if (handle.IsRunning)
+                    return true;
             }
-            list.Add(coroutine);
+            
+            return false;
         }
         
         public static void StopTag(string tag)
         {
             if (string.IsNullOrEmpty(tag)) return;
             if (!TagMap.TryGetValue(tag, out var list)) return;
-            foreach (var c in list)
+            
+            foreach (var handle in list)
             {
-                if (c != null) Instance.StopCoroutine(c);
+                if (handle is { Coroutine: not null })
+                    Instance.StopCoroutine(handle.Coroutine);
             }
             list.Clear();
+            TagMap.Remove(tag);
         }
 
         #endregion
 
-        #region 返回协程的 Delay
+        #region 支持 yield return Delay
 
-        public static Coroutine Delay(float seconds, Action callback, bool realtime = false, bool safe = false)
+        public static IEnumerator Delay(float seconds, Action callback, bool realtime = false)
         {
-            var routine = DelayRoutine(seconds, callback, realtime);
-            return safe ? RunSafe(routine) : Run(routine);
-        }
-
-        private static IEnumerator DelayRoutine(float seconds, Action callback, bool realtime)
-        {
+            seconds = Mathf.Max(seconds, 0.0f);
             if (realtime)
                 yield return new WaitForSecondsRealtime(seconds);
             else
@@ -182,7 +181,34 @@ namespace Foli
                 yield return current;
             }
         }
-        
+
+        // Key 自动清理
+        private static IEnumerator WrapAutoCleanKey(IEnumerator routine, CoroutineHandle handle, object key)
+        {
+            yield return routine;
+            if (KeyMap.TryGetValue(key, out var h) && h == handle)
+                KeyMap.Remove(key);
+        }
+
+        // Tag 自动清理
+        private static IEnumerator WrapAutoCleanTag(IEnumerator routine, CoroutineHandle handle, string tag)
+        {
+            yield return routine;
+            if (TagMap.TryGetValue(tag, out var list))
+            {
+                list.Remove(handle);
+                if (list.Count == 0) TagMap.Remove(tag);
+            }
+        }
+
+        // 运行中标记
+        private static IEnumerator WrapIsRunning(IEnumerator routine, CoroutineHandle handle)
+        {
+            handle.IsRunning = true;
+            yield return routine;
+            handle.IsRunning = false;
+        }
+
         #endregion
         
     }
