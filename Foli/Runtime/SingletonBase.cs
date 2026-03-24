@@ -2,31 +2,34 @@ using UnityEngine;
 
 namespace Foli
 {
+    public static class AppState
+    {
+        public static bool IsQuitting;
+    }
+    
     public abstract class SingletonBase<T> : MonoBehaviour where T : SingletonBase<T>
     {
         private static T _instance;
-        private static bool _isQuitting;
-
-        /// <summary>
-        /// 显式初始化，确保单例初始顺序
-        /// </summary>
-        public static void Init() => _ = Instance;
+        private bool _initialized;
         
-        /// <summary>
-        /// 获取单例引用
-        /// </summary>
         public static T Instance
         {
             get
             {
-                if (_isQuitting) return null;
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    return null;
+#endif
+                if (AppState.IsQuitting) 
+                    return null;
+                
                 if (_instance == null)
-                    _instance = CreateInstance(); // 懒初始化
+                    _instance = CreateInstance();
+                
                 return _instance;
             }
         }
-
-        // 动态创建对象
+        
         private static T CreateInstance()
         {
             var go = new GameObject(typeof(T).Name);
@@ -34,29 +37,40 @@ namespace Foli
             DontDestroyOnLoad(go);
             return instance;
         }
-
-        // 确保单例唯一
+        private void InitializeOnce()
+        {
+            if (_initialized) return;
+            _initialized = true;
+            OnSingletonInit();
+        }
+        protected virtual void OnSingletonInit() { }
+        
         protected virtual void Awake()
         {
             if (_instance == null)
             {
                 _instance = this as T;
                 DontDestroyOnLoad(gameObject);
+                InitializeOnce();
             }
             else if (_instance != this)
                 Destroy(gameObject);
         }
-
-        // 清理引用
         protected virtual void OnDestroy()
         {
-            if (_instance == this) _instance = null;
+            if (_instance == this && !AppState.IsQuitting)
+                _instance = null;
         }
-        
-        // 退出标记
         protected virtual void OnApplicationQuit()
         {
-            _isQuitting = true;
+            AppState.IsQuitting = true;
+        }
+        
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            _instance = null;
+            AppState.IsQuitting = false;
         }
     }
 }

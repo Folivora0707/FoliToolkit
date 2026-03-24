@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -9,6 +10,19 @@ namespace Foli
         
         #region 对外接口
 
+        /// <summary>
+        /// 延时 N 秒执行（可取消）
+        /// </summary>
+        /// <returns> 控制取消的句柄 </returns>
+        public static DelayHandle Run(Action action, float seconds, bool ignoreTimeScale = false)
+        {
+            var cts = new CancellationTokenSource();
+            int ms = Mathf.Max(1, Mathf.RoundToInt(seconds * 1000f));
+            
+            Delay(action, ms, cts, ignoreTimeScale).Forget();
+            return new DelayHandle(cts);
+        }
+        
         /// <summary>
         /// 延时 N 秒执行
         /// </summary>
@@ -38,6 +52,41 @@ namespace Foli
 
         #region 内部实现
 
+        public sealed class DelayHandle : IDisposable
+        {
+            private CancellationTokenSource _cts;
+
+            internal DelayHandle(CancellationTokenSource cts) => _cts = cts;
+
+            public void Cancel()
+            {
+                _cts?.Cancel();
+                _cts = null;
+            }
+
+            public void Dispose() => Cancel();
+        }
+        
+        /// <summary>
+        /// 延时 N 毫秒执行某方法（可取消）
+        /// </summary>
+        private static async UniTask Delay(Action action, int milliseconds, CancellationTokenSource cts, bool ignoreTimeScale)
+        {
+            var delayType = ignoreTimeScale ? DelayType.UnscaledDeltaTime : DelayType.DeltaTime;
+            try
+            {
+                if (await UniTask.Delay(milliseconds, delayType, cancellationToken: cts.Token)
+                        .SuppressCancellationThrow())
+                    return;
+                
+                action?.Invoke();
+            }
+            finally
+            {
+                cts.Dispose();
+            }
+        }
+        
         /// <summary>
         /// 延时 N 毫秒执行某方法
         /// </summary>
