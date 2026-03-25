@@ -6,15 +6,15 @@ public abstract class RegionBaseRefreshData { }
 /// <summary> 显示依赖的参数 </summary>
 public abstract class RegionBaseShowParam { }
 
-public abstract class UIRegionBase : MonoBehaviour
+public abstract class UIBase1 : MonoBehaviour
 {
     #region 中介
-    private UIRegionHub _hub;
-    public T GetHub<T>() where T : UIRegionHub
+    private UIHub _hub;
+    public T GetHub<T>() where T : UIHub
     {
         return _hub as T;
     }
-    public void SetHub(UIRegionHub hub)
+    public void SetHub(UIHub hub)
     {
         _hub = hub;
     }

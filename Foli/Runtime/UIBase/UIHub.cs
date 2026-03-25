@@ -2,17 +2,17 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class UIRegionHub : MonoBehaviour
+public class UIHub : MonoBehaviour
 {
     #region 树状中介
-    private readonly Dictionary<int, UIRegionBase> _regions = new();
-    public void SetRegion(int id, UIRegionBase region)
+    private readonly Dictionary<int, UIBase1> _regions = new();
+    public void SetRegion(int id, UIBase1 region)
     {
         if (region == null) return;
         _regions[id] = region;
         region.SetHub(this);
     }
-    public T GetRegion<T>(int id) where T : UIRegionBase
+    public T GetRegion<T>(int id) where T : UIBase1
     {
         if(_regions.TryGetValue(id, out var region))
             return region as T;
