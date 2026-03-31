@@ -6,7 +6,7 @@ public abstract class RegionBaseRefreshData { }
 /// <summary> 显示依赖的参数 </summary>
 public abstract class RegionBaseShowParam { }
 
-public abstract class UIBase1 : MonoBehaviour
+public abstract class UIPage : MonoBehaviour
 {
     #region 中介
     private UIHub _hub;

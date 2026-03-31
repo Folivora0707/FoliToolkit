@@ -5,14 +5,14 @@ using UnityEngine;
 public class UIHub : MonoBehaviour
 {
     #region 树状中介
-    private readonly Dictionary<int, UIBase1> _regions = new();
-    public void SetRegion(int id, UIBase1 region)
+    private readonly Dictionary<int, UIPage> _regions = new();
+    public void SetRegion(int id, UIPage region)
     {
         if (region == null) return;
         _regions[id] = region;
         region.SetHub(this);
     }
-    public T GetRegion<T>(int id) where T : UIBase1
+    public T GetRegion<T>(int id) where T : UIPage
     {
         if(_regions.TryGetValue(id, out var region))
             return region as T;
