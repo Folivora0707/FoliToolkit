@@ -11,7 +11,7 @@ namespace Foli
         /// 订阅事件监听
         /// </summary>
         /// <param name="callback"> 事件回调 </param>
-        /// <param name="priority"> 事件优先级 </param>
+        /// <param name="priority"> 同类事件响应优先级 </param>
         /// <typeparam name="T"> 事件类型 </typeparam>
         public void Subscribe<T>(Action<T> callback, int priority = 0)
         {
@@ -32,8 +32,13 @@ namespace Foli
         /// <typeparam name="T"> 事件类型 </typeparam>
         public void Unsubscribe<T>(Action<T> callback)
         {
-            if (_handlers.TryGetValue(typeof(T), out var handler))
-                ((EventHandler<T>)handler).Remove(callback);
+            var type = typeof(T);
+            if (!_handlers.TryGetValue(type, out var handler)) return;
+            
+            var eventHandler = (EventHandler<T>)handler;
+            eventHandler.Remove(callback);
+            
+            if (eventHandler.IsEmpty) _handlers.Remove(type);
         }
         
         /// <summary>
