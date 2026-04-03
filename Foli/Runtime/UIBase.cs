@@ -1,72 +1,75 @@
 ﻿using UnityEngine;
 
-public interface IUIData { }
-
-public abstract class UIBase : MonoBehaviour
+namespace Foli
 {
-    private bool _initialized;
-    protected IUIData Data { get; private set; }
+    public interface IUIData { }
 
-    private void InitInternal()
+    public abstract class UIBase : MonoBehaviour
     {
-        if (_initialized) return;
-        OnInit();
-        _initialized = true;
-    }
+        private bool _initialized;
+        protected IUIData Data { get; private set; }
 
-    public void SetData(IUIData data)
-    {
-        Data = data;
-        OnDataSet();
-    }
+        private void InitInternal()
+        {
+            if (_initialized) return;
+            OnInit();
+            _initialized = true;
+        }
 
-    public void Refresh()
-    {
-        InitInternal();
-        if (Data == null) return;
-        OnRefresh();
-    }
+        public void SetData(IUIData data)
+        {
+            Data = data;
+            OnDataSet();
+        }
 
-    public void SetVisible(bool visible)
-    {
-        if (gameObject.activeSelf == visible) return;
+        public void Refresh()
+        {
+            InitInternal();
+            if (Data == null) return;
+            OnRefresh();
+        }
 
-        if (visible) OnBeforeShow();
-        else OnBeforeHide();
+        public void SetVisible(bool visible)
+        {
+            if (gameObject.activeSelf == visible) return;
 
-        gameObject.SetActive(visible);
+            if (visible) OnBeforeShow();
+            else OnBeforeHide();
 
-        if (visible) OnShow();
-        else OnHide();
-    }
+            gameObject.SetActive(visible);
 
-    protected abstract void OnInit();
+            if (visible) OnShow();
+            else OnHide();
+        }
 
-    protected virtual void OnDataSet()
-    {
-    }
+        protected abstract void OnInit();
 
-    protected abstract void OnRefresh();
+        protected virtual void OnDataSet()
+        {
+        }
 
-    protected virtual void OnBeforeShow()
-    {
-    }
+        protected abstract void OnRefresh();
 
-    protected virtual void OnBeforeHide()
-    {
-    }
+        protected virtual void OnBeforeShow()
+        {
+        }
 
-    protected virtual void OnShow()
-    {
-    }
+        protected virtual void OnBeforeHide()
+        {
+        }
 
-    protected virtual void OnHide()
-    {
-    }
+        protected virtual void OnShow()
+        {
+        }
 
-    protected virtual void Awake()
-    {
-        InitInternal();
+        protected virtual void OnHide()
+        {
+        }
+
+        protected virtual void Awake()
+        {
+            InitInternal();
+        }
     }
 }
 

@@ -2,64 +2,78 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class UIHub : MonoBehaviour
+namespace Foli
 {
-    #region 树状中介
-    private readonly Dictionary<int, UIPage> _regions = new();
-    public void SetRegion(int id, UIPage region)
+    public class UIHub : MonoBehaviour
     {
-        if (region == null) return;
-        _regions[id] = region;
-        region.SetHub(this);
-    }
-    public T GetRegion<T>(int id) where T : UIPage
-    {
-        if(_regions.TryGetValue(id, out var region))
-            return region as T;
-        return null;
-    }
-    #endregion
+        #region 树状中介
 
-    #region 页面返回栈
-    [Flags]
-    public enum Options
-    {
-        None = 0,
-        PushCurrent = 1 << 0,
-        HideOthers = 1 << 1,
-    }
-    private readonly Stack<(int, RegionBaseShowParam)> _stack = new();
-    private int _currentPage = -1;
-    private RegionBaseShowParam _currentParam;
-    
-    public void SetPage(int page, RegionBaseShowParam param = null)
-    {
-        _currentPage = page;
-        _currentParam = param;
-    }
-    public void GoPage(int page, RegionBaseShowParam param = null, Options options = Options.PushCurrent | Options.HideOthers)
-    {
-        if (!_regions.TryGetValue(page, out var region))
-            return;
-        if ((options & Options.HideOthers) != 0)
+        private readonly Dictionary<int, UIPage> _regions = new();
+
+        public void SetRegion(int id, UIPage region)
         {
-            foreach (var r in _regions.Values)
-                r.Hide();
+            if (region == null) return;
+            _regions[id] = region;
+            region.SetHub(this);
         }
-        if ((options & Options.PushCurrent) != 0)
+
+        public T GetRegion<T>(int id) where T : UIPage
         {
-            if (_currentPage > 0 && page != _currentPage)
-                _stack.Push((_currentPage, _currentParam));
+            if (_regions.TryGetValue(id, out var region))
+                return region as T;
+            return null;
         }
-        
-        SetPage(page, param);
-        region.Show(param);
+
+        #endregion
+
+        #region 页面返回栈
+
+        [Flags]
+        public enum Options
+        {
+            None = 0,
+            PushCurrent = 1 << 0,
+            HideOthers = 1 << 1,
+        }
+
+        private readonly Stack<(int, RegionBaseShowParam)> _stack = new();
+        private int _currentPage = -1;
+        private RegionBaseShowParam _currentParam;
+
+        public void SetPage(int page, RegionBaseShowParam param = null)
+        {
+            _currentPage = page;
+            _currentParam = param;
+        }
+
+        public void GoPage(int page, RegionBaseShowParam param = null,
+            Options options = Options.PushCurrent | Options.HideOthers)
+        {
+            if (!_regions.TryGetValue(page, out var region))
+                return;
+            if ((options & Options.HideOthers) != 0)
+            {
+                foreach (var r in _regions.Values)
+                    r.Hide();
+            }
+
+            if ((options & Options.PushCurrent) != 0)
+            {
+                if (_currentPage > 0 && page != _currentPage)
+                    _stack.Push((_currentPage, _currentParam));
+            }
+
+            SetPage(page, param);
+            region.Show(param);
+        }
+
+        public void GoBack()
+        {
+            if (_stack.Count <= 0) return;
+            var (page, param) = _stack.Pop();
+            GoPage(page, param, Options.HideOthers);
+        }
+
+        #endregion
     }
-    public void GoBack()
-    {
-        if (_stack.Count <= 0) return;
-        var (page, param) = _stack.Pop();
-        GoPage(page, param, Options.HideOthers);
-    }
-    #endregion
 }
