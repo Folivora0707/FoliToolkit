@@ -5,6 +5,12 @@ namespace Foli
     public static class AppState
     {
         public static bool IsQuitting;
+        
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            IsQuitting = false;
+        }
     }
     
     public abstract class SingletonBase<T> : MonoBehaviour where T : SingletonBase<T>
@@ -33,9 +39,8 @@ namespace Foli
         private static T CreateInstance()
         {
             var go = new GameObject(typeof(T).Name);
-            var instance = go.AddComponent<T>();
             DontDestroyOnLoad(go);
-            return instance;
+            return go.AddComponent<T>();
         }
         private void InitializeOnce()
         {
@@ -64,13 +69,6 @@ namespace Foli
         protected virtual void OnApplicationQuit()
         {
             AppState.IsQuitting = true;
-        }
-        
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics()
-        {
-            _instance = null;
-            AppState.IsQuitting = false;
         }
     }
 }

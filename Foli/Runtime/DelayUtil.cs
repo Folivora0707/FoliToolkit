@@ -16,11 +16,11 @@ namespace Foli
         /// <returns> 控制取消的句柄 </returns>
         public static DelayHandle Run(Action action, float seconds, bool ignoreTimeScale = false)
         {
-            var cts = new CancellationTokenSource();
+            var handle = new DelayHandle();
             int ms = Mathf.Max(1, Mathf.RoundToInt(seconds * 1000f));
             
-            Delay(action, ms, cts, ignoreTimeScale).Forget();
-            return new DelayHandle(cts);
+            Delay(action, ms, handle, ignoreTimeScale).Forget();
+            return handle;
         }
         
         /// <summary>
@@ -52,30 +52,43 @@ namespace Foli
 
         #region 内部实现
 
-        public sealed class DelayHandle : IDisposable
+        public sealed class DelayHandle
         {
-            private CancellationTokenSource _cts;
+            private CancellationTokenSource _cts = new();
+            internal CancellationToken Token => _cts?.Token ?? CancellationToken.None;
 
-            internal DelayHandle(CancellationTokenSource cts) => _cts = cts;
-
-            public void Cancel()
+            private void Release(bool cancel)
             {
-                _cts?.Cancel();
+                var cts = _cts;
                 _cts = null;
+
+                if (cts == null) return;
+                try
+                {
+                    if (cancel) cts.Cancel();
+                }
+                finally
+                {
+                    cts.Dispose();
+                }
             }
 
-            public void Dispose() => Cancel();
+            /// <summary> 取消未完成的延时任务 </summary>
+            public void Cancel() => Release(true);
+
+            /// <summary> 延时任务已自然结束，释放资源 </summary>
+            internal void Complete() => Release(false);
         }
         
         /// <summary>
         /// 延时 N 毫秒执行某方法（可取消）
         /// </summary>
-        private static async UniTask Delay(Action action, int milliseconds, CancellationTokenSource cts, bool ignoreTimeScale)
+        private static async UniTask Delay(Action action, int milliseconds, DelayHandle handle, bool ignoreTimeScale)
         {
             var delayType = ignoreTimeScale ? DelayType.UnscaledDeltaTime : DelayType.DeltaTime;
             try
             {
-                if (await UniTask.Delay(milliseconds, delayType, cancellationToken: cts.Token)
+                if (await UniTask.Delay(milliseconds, delayType, cancellationToken: handle.Token)
                         .SuppressCancellationThrow())
                     return;
                 
@@ -83,7 +96,7 @@ namespace Foli
             }
             finally
             {
-                cts.Dispose();
+                handle.Complete();
             }
         }
         
